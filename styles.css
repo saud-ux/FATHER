@@ -4,3 +4,24 @@
 @media(max-width:650px){body{font-size:20px}.app{padding:0 12px}header{height:70px;gap:8px}.brand{font-size:21px}.header-end{gap:6px}.header-end button{font-size:17px;padding:6px 9px}.connection{font-size:14px}.simple-start,.simple-setup{margin:35px auto}.simple-start>h1{display:none}.simple-setup{padding:20px}.simple-setup h1{font-size:27px}.tabs{gap:10px;margin:14px 0}.tabs button{font-size:23px}.scores{gap:8px;margin:10px 0}.score{padding:10px;gap:8px}.score h2{font-size:21px}.score p{font-size:16px}.team-dot{width:8px;height:28px}.wins{display:none}.round{font-size:15px}.board{max-height:50vh}.play-panel{padding:5px}.host-content>.control-row{position:sticky;bottom:0;background:var(--paper);padding:10px 0;margin:0;z-index:5}.control-row{gap:10px}.control-row>button{font-size:21px;padding:12px}.question-layout{display:block}.question-layout:not(.has-selection) .question-detail{display:none}.question-layout.has-selection .question-list{display:none}.list-scroll{max-height:none}.question-card{min-height:105px}.question-card strong{font-size:21px}.question-card small{font-size:17px}.question-detail{padding:18px}.question-detail h2{font-size:27px}.question-detail>.back-to-list{width:100%;min-height:62px;font-size:21px}.preview-image{max-height:35vh}.answer-private p{font-size:28px}.live-controls{padding:14px}.live-controls .control-row{display:flex}.live-controls .control-row>button{font-size:18px;min-width:42%}.live-controls p{font-size:20px}.settings .panel{padding:18px}.settings h2{font-size:23px}.section-title h1{font-size:25px}.section-title>button{font-size:18px;padding:10px}.settings .control-row{display:block}.settings .control-row>button{width:100%;margin:8px 0}.manage-list>div{flex-wrap:wrap}.manage-list>div>span{min-width:100%}.manage-list button{flex:1}.danger-zone>button{width:100%;margin:8px 0}.modal-backdrop{padding:12px}.modal{padding:24px 18px}.modal h2{font-size:26px}.winner-banner{font-size:25px;min-width:85%;bottom:4px;padding:10px}.public-question{min-height:55vh}.question-heading h1{font-size:30px}.public-image{max-height:48vh}.public-answer strong{font-size:30px}.question-actions button{font-size:19px;padding:10px}.audience-bottom .control-row>button{font-size:21px}.error{align-items:stretch;flex-direction:column}.error button{width:100%}}
 .host-app .board-tab{height:calc(100dvh - 172px);min-height:400px;display:flex;flex-direction:column}.board-tab>.scores,.board-tab>.control-row,.board-tab>.live-controls{flex-shrink:0}.host-app .board-tab>.play-panel{flex:1;min-height:0;display:flex;flex-direction:column}.host-app .board-tab .board-wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}.host-app .board-tab .board{height:100%;width:auto;max-width:100%;max-height:100%}.board-tab>.control-row{flex-shrink:0}
 @media(max-width:650px){.host-app .board-tab{height:calc(100dvh - 162px);padding-bottom:0}.host-app .board-tab>.control-row{position:static;padding:10px 0}}
+
+/* Keep the board visible beside the public question and its full image. */
+.audience .question-stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:stretch}
+.audience .question-stage>.board-wrap{width:100%;min-width:0;min-height:0;display:flex;align-items:center;justify-content:center}
+.audience .question-stage .board{width:100%;height:100%;max-width:100%;max-height:100%;aspect-ratio:470/380}
+.audience .question-stage>.public-question{min-width:0;min-height:0;height:100%;padding:12px;border-inline-start:1px solid var(--line);justify-content:center}
+.audience .question-stage .question-heading h1{font-size:clamp(30px,2.7vw,44px);line-height:1.65;overflow-wrap:anywhere}
+.audience .question-stage .public-image{width:100%;object-fit:contain}
+.audience .question-stage .public-answer strong{font-size:clamp(28px,2.5vw,38px);overflow-wrap:anywhere}
+.audience .question-stage .question-actions{flex-wrap:wrap;margin-top:12px}
+.audience .question-stage .question-actions:empty{display:none}
+.audience .question-stage.image-expanded{grid-template-columns:minmax(240px,.65fr) minmax(0,1.35fr)}
+.audience .question-stage .winner-banner{font-size:clamp(22px,2.4vw,32px)}
+@media(max-width:900px){
+ .audience .question-stage,.audience .question-stage.image-expanded{grid-template-columns:minmax(0,1fr);gap:12px}
+ .audience .question-stage .board{height:auto;max-height:36dvh}
+ .audience .question-stage>.public-question{height:auto;border-inline-start:0;border-top:1px solid var(--line);padding:18px 8px;gap:14px}
+ .audience .question-stage .public-image{flex:none;max-height:48dvh}
+ .audience .question-stage.image-expanded .public-image{max-height:70dvh}
+ .audience .question-stage .question-heading h1{font-size:30px}
+}
