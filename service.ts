@@ -6,7 +6,10 @@ function decodeImage(data:string):Uint8Array {
  return bytes;
 }
 import {apply,initialGame,publicView} from './core.ts';
-import {referenceSeeds,CONTENT_VERSION} from './questions.ts';
+import {referenceSeeds as originalSeeds} from './questions.ts';
+import {extraQuestions} from './extra-questions.ts';
+const referenceSeeds=[...originalSeeds,...extraQuestions];
+const CONTENT_VERSION=3;
 const response=(data:any,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
 export async function hash(s:string){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('')}
 export async function session(req:Request,env:any){const id=new URL(req.url).searchParams.get('s');if(!id||!/^[a-f0-9-]{36}$/.test(id))return null;return await env.DB!.prepare('SELECT * FROM sessions WHERE id = ?').bind(id).first()}
@@ -23,6 +26,8 @@ export async function installContent(g:any,id:string,env:any){
  g.questions=g.questions.filter((q:any)=>!q.demo);
  if(removed.has(g.display)){g.display=null;g.reveal=false;g.zoom=false}
  for(const seed of referenceSeeds){
+  // Existing v2 sessions keep original questions, deletions and display unchanged.
+  if((g.contentVersion||0)>=2&&!seed.id.startsWith('friends-extra-'))continue;
   const existing=g.questions.find((q:any)=>q.id===seed.id);
   // Preserve questions the presenter edited; update only untouched bundled references.
   if(existing){const old=previousReference[seed.id];if(!old||existing.text!==old[0]||existing.answer!==old[1])continue}
