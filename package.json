@@ -10,7 +10,7 @@
     "build": "node build.mjs",
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
-    "test": "node --experimental-strip-types --test test-core.ts && node --experimental-strip-types test-api.mjs",
+    "test": "node --experimental-strip-types --test test-core.ts && node --experimental-strip-types test-api.mjs && node --experimental-strip-types test-images.mjs",
     "db:local": "wrangler d1 execute DB --local --file=schema.sql",
     "db:remote": "wrangler d1 execute DB --remote --file=schema.sql"
   },
