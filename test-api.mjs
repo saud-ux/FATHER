@@ -1,12 +1,14 @@
+import {readFileSync} from 'node:fs';
+import {imageStore} from './image-store.ts';
 import assert from 'node:assert/strict';
 import {referenceSeeds} from './questions.ts';
 import {DatabaseSync} from 'node:sqlite';
 import {gameGET,gamePOST,imageGET,imagePOST} from './service.ts';
-// Exercise the real HTTP handlers against SQLite + a bucket test adapter.
+// Exercise the real HTTP handlers and D1 image adapter against SQLite.
 const sql=new DatabaseSync(':memory:');
-sql.exec('CREATE TABLE sessions(id TEXT PRIMARY KEY, token_hash TEXT NOT NULL, revision INTEGER NOT NULL, data TEXT NOT NULL)');
-const objects=new Map();
-const env={DB:{prepare(query){let args=[];return {bind(...values){args=values;return this},async first(){return sql.prepare(query).get(...args)||null},async run(){const result=sql.prepare(query).run(...args);return {meta:{changes:Number(result.changes)}}}}}},BUCKET:{async put(key,bytes,opts){objects.set(key,{bytes:new Uint8Array(bytes),opts})},async head(key){return objects.has(key)?{}:null},async get(key){const o=objects.get(key);return o?{body:o.bytes,httpMetadata:o.opts.httpMetadata}:null}}};
+sql.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));
+const DB={prepare(query){let args=[];return {bind(...values){args=values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v);return this},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){const result=sql.prepare(query).run(...args);return {meta:{changes:Number(result.changes)}}}}},async batch(statements){sql.exec('BEGIN');try{for(const s of statements)await s.run();sql.exec('COMMIT')}catch(e){sql.exec('ROLLBACK');throw e}}};
+const env={DB,BUCKET:imageStore(DB)};
 const origin='https://game.test';
 const fetch=async(url,init)=>{const req=new Request(url,init);const image=new URL(url).pathname==='/api/image';return (image?(req.method==='POST'?imagePOST:imageGET):(req.method==='POST'?gamePOST:gameGET))(req,env)};
 let count=0;function ok(value,label){assert.ok(value,label);count++;console.log('PASS '+label)}
