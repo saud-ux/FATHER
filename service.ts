@@ -1,3 +1,10 @@
+function decodeImage(data:string):Uint8Array {
+ const native=(Uint8Array as any).fromBase64;
+ if(native)return native.call(Uint8Array,data);
+ const raw=atob(data),bytes=new Uint8Array(raw.length);
+ for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+ return bytes;
+}
 import {apply,initialGame,publicView} from './core.ts';
 import {referenceSeeds,CONTENT_VERSION} from './questions.ts';
 const response=(data:any,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
@@ -20,7 +27,7 @@ export async function installContent(g:any,id:string,env:any){
   // Preserve questions the presenter edited; update only untouched bundled references.
   if(existing){const old=previousReference[seed.id];if(!old||existing.text!==old[0]||existing.answer!==old[1])continue}
   let image=null;
-  if(seed.data){const digest=await hash(seed.data);const name=[digest.slice(0,8),digest.slice(8,12),digest.slice(12,16),digest.slice(16,20),digest.slice(20,32)].join('-');image=id+'/'+name;if(!await env.BUCKET.head(image)){const bytes=Uint8Array.from(atob(seed.data),c=>c.charCodeAt(0));await env.BUCKET.put(image,bytes,{httpMetadata:{contentType:'image/jpeg'}})}}
+  if(seed.data){const digest=await hash(seed.data);const name=[digest.slice(0,8),digest.slice(8,12),digest.slice(12,16),digest.slice(16,20),digest.slice(20,32)].join('-');image=id+'/'+name;if(!await env.BUCKET.head(image)){const bytes=decodeImage(seed.data);await env.BUCKET.put(image,bytes,{httpMetadata:{contentType:'image/jpeg'}})}}
   const q={id:seed.id,text:seed.text,answer:seed.answer,note:existing?.note&&existing.note!=='الإجابة من نص المرفق كما وردت؛ لم تُستنتج من الصورة. راجع الصياغة قبل اللقاء.'?existing.note:seed.note,review:seed.review,image};
   g.questions=g.questions.filter((q:any)=>q.id!==seed.id).concat(q);
   if(g.display===seed.id)g.reveal=false;
