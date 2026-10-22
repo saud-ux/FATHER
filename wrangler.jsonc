@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "majlis-hex-game",
+  "name": "father",
   "main": "worker.ts",
   "compatibility_date": "2026-10-22",
   "assets": {
@@ -12,13 +12,7 @@
     {
       "binding": "DB",
       "database_name": "majlis-game",
-      "database_id": "00000000-0000-4000-8000-000000000000"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "BUCKET",
-      "bucket_name": "majlis-game-images"
+      "database_id": "fdfa8589-5fc4-4956-9307-d804820f92d6"
     }
   ]
 }
