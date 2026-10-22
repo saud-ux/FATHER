@@ -15,7 +15,7 @@ let count=0;function ok(value,label){assert.ok(value,label);count++;console.log(
 let r=await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})});assert.equal(r.status,200);const{id,key}=await r.json();ok(id&&key,'create durable session with presenter capability');
 const base=origin+'/api/game?s='+id;
 const get=async(host=false)=>{const r=await fetch(base+(host?'&host=1':''),{headers:host?{'x-host-key':key}:{}});assert.equal(r.status,200);return r.json()};
-let state=await get(true);ok(state.questions.length===19&&state.questions.filter(q=>q.review).length===2,'19 uploaded questions seeded, including two blocked for review');
+let state=await get(true);ok(state.questions.length===44&&state.questions.filter(q=>q.review).length===2,'44 questions seeded, including two blocked for review');
 const post=async(action,revision=state.revision,op=crypto.randomUUID())=>fetch(base,{method:'POST',headers:{'content-type':'application/json','x-host-key':key},body:JSON.stringify({...action,revision,op})});
 async function act(action){const r=await post(action);assert.equal(r.status,200,await r.text());state=await get(true)}
 r=await fetch(base+'&host=1');ok(r.status===403,'audience URL cannot retrieve question bank');
@@ -43,9 +43,24 @@ const legacyId=crypto.randomUUID(),legacyKey=crypto.randomUUID();const legacy=in
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(legacyId,await hash(legacyKey),5,JSON.stringify(legacy));
 const legacyUrl=origin+'/api/game?s='+legacyId+'&host=1';
 const upgraded=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();
-ok(upgraded.questions.length===20&&!upgraded.questions.some(q=>q.demo),'existing session receives uploaded bank exactly once without demos');
+ok(upgraded.questions.length===45&&!upgraded.questions.some(q=>q.demo),'existing session receives uploaded bank exactly once without demos');
 ok(upgraded.state.cells[7]===1&&upgraded.state.round===4&&upgraded.state.wins[0]===2&&upgraded.used.includes('reference-3'),'content upgrade preserves board, rounds, wins and used-question history');
 ok(upgraded.questions.find(q=>q.id==='reference-2').text==='صياغة عدّلها المقدّم'&&upgraded.questions.some(q=>q.id==='own'),'content upgrade preserves presenter edits and custom questions');
 ok(upgraded.questions.find(q=>q.id==='reference-1').note==='ملاحظة شخصية لا تُمسح','content upgrade preserves private presenter notes');
-const again=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();ok(again.revision===upgraded.revision&&again.questions.length===20,'reload never duplicates imported questions or rewrites state');
+const again=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();ok(again.revision===upgraded.revision&&again.questions.length===45,'reload never duplicates imported questions or rewrites state');
+
+const upgradedV2=structuredClone(legacy);
+upgradedV2.contentVersion=2;upgradedV2.questions=upgradedV2.questions.filter(q=>!q.demo&&q.id!=='reference-1');
+upgradedV2.display='reference-3';upgradedV2.reveal=true;upgradedV2.used=['reference-3'];
+const v2id=crypto.randomUUID(),v2key=crypto.randomUUID();
+sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(v2id,await hash(v2key),7,JSON.stringify(upgradedV2));
+const v2base=origin+'/api/game?s='+v2id+'&host=1';
+const upgradedV3=await (await fetch(v2base,{headers:{'x-host-key':v2key}})).json();
+ok(upgradedV3.questions.filter(q=>q.id.startsWith('friends-extra-')).length===25,'existing v2 session receives all 25 approved questions');
+ok(!upgradedV3.questions.some(q=>q.id==='reference-1'),'content update respects previously deleted original questions');
+ok(upgradedV3.state.cells[7]===1&&upgradedV3.state.wins[0]===2&&upgradedV3.state.round===4&&upgradedV3.used.includes('reference-3'),'adding questions preserves board, wins, rounds and used history');
+ok(upgradedV3.state.question.answer==='أسماعيل البرصان','content update preserves the currently revealed original answer');
+const v3again=await (await fetch(v2base,{headers:{'x-host-key':v2key}})).json();
+ok(v3again.revision===upgradedV3.revision&&v3again.questions.length===upgradedV3.questions.length,'reconnecting never duplicates the 25 added questions');
+
 console.log(`All ${count} API integration checks passed.`);
