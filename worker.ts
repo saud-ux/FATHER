@@ -1,6 +1,8 @@
+import {imageStore} from './image-store';
 import {gameGET,gamePOST,imageGET,imagePOST} from './service';
 export default {
  async fetch(request:Request,env:any):Promise<Response>{
+  env={...env,BUCKET:imageStore(env.DB)};
   const path=new URL(request.url).pathname;
   if(path==='/api/game'){
    if(request.method==='GET')return gameGET(request,env);
