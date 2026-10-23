@@ -7,13 +7,20 @@ import {gameGET,gamePOST,imageGET,imagePOST} from './service.ts';
 // Exercise the real HTTP handlers and D1 image adapter against SQLite.
 const sql=new DatabaseSync(':memory:');
 sql.exec(readFileSync(new URL('./schema.sql',import.meta.url),'utf8'));
-const DB={prepare(query){let args=[];return {bind(...values){args=values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v);return this},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){const result=sql.prepare(query).run(...args);return {meta:{changes:Number(result.changes)}}}}},async batch(statements){sql.exec('BEGIN');try{for(const s of statements)await s.run();sql.exec('COMMIT')}catch(e){sql.exec('ROLLBACK');throw e}}};
+let batchTail=Promise.resolve();
+const DB={prepare(query){let args=[];return {bind(...values){args=values.map(v=>v instanceof ArrayBuffer?new Uint8Array(v):v);return this},async first(){return sql.prepare(query).get(...args)||null},async all(){return {results:sql.prepare(query).all(...args)}},async run(){const result=sql.prepare(query).run(...args);return {meta:{changes:Number(result.changes)}}}}},async batch(statements){const run=batchTail.then(async()=>{sql.exec('BEGIN');try{for(const s of statements)await s.run();sql.exec('COMMIT')}catch(e){sql.exec('ROLLBACK');throw e}});batchTail=run.catch(()=>{});return run}};
 const env={DB,BUCKET:imageStore(DB)};
 const origin='https://game.test';
 const fetch=async(url,init)=>{const req=new Request(url,init);const image=new URL(url).pathname==='/api/image';return (image?(req.method==='POST'?imagePOST:imageGET):(req.method==='POST'?gamePOST:gameGET))(req,env)};
 let count=0;function ok(value,label){assert.ok(value,label);count++;console.log('PASS '+label)}
 let r=await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})});assert.equal(r.status,200);const{id,key}=await r.json();ok(id&&key,'create durable session with presenter capability');
 const base=origin+'/api/game?s='+id;
+const secondOpen=await (await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})})).json();
+ok(secondOpen.id===id&&!secondOpen.key&&sql.prepare('SELECT count(*) n FROM sessions').get().n===1,'opening on another device reuses the single session without exposing its key');
+const ownerOpen=await (await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json','x-host-key':key},body:JSON.stringify({type:'create'})})).json();
+ok(ownerOpen.id===id&&ownerOpen.key===key,'presenter reopens same game with the same private link');
+const resolved=await (await fetch(origin+'/api/game?resolve=1')).json();
+ok(resolved.id===id&&Object.keys(resolved).length===1,'public landing resolves the game without private data');
 const get=async(host=false)=>{const r=await fetch(base+(host?'&host=1':''),{headers:host?{'x-host-key':key}:{}});assert.equal(r.status,200);return r.json()};
 let state=await get(true);ok(state.questions.length===53&&state.questions.filter(q=>q.review).length===2,'53 questions seeded, including two blocked for review');
 const post=async(action,revision=state.revision,op=crypto.randomUUID())=>fetch(base,{method:'POST',headers:{'content-type':'application/json','x-host-key':key},body:JSON.stringify({...action,revision,op})});
@@ -33,13 +40,14 @@ for(const index of [11,12,13,14])await act({type:'cell',index,team:1,edit:true})
 await act({type:'cell',index:14,team:1});ok(state.state.wins[0]===1,'double assignment does not increment victory');await act({type:'undo'});ok(state.state.winner===0&&state.state.wins[0]===0,'undo winning move rescinds score');
 const reconnect=await get();ok(reconnect.revision===state.revision&&JSON.stringify(reconnect.state)===JSON.stringify(state.state),'fresh client recovers exact stored state after reconnect');
 const bytes=Buffer.from(referenceSeeds.find(q=>q.id==='reference-4').data,'base64');r=await fetch(origin+'/api/image?s='+id,{method:'POST',headers:{'x-host-key':key,'content-type':'image/jpeg'},body:bytes});assert.equal(r.status,200);const uploaded=await r.json();await act({type:'save',question:{id:'custom-upload',text:'اختبار صورة',answer:'سري للغاية',note:'خاص',image:uploaded.key}});await act({type:'show',id:'custom-upload'});r=await fetch(origin+'/api/image?s='+id+'&key='+uploaded.key);ok(Buffer.from(await r.arrayBuffer()).equals(bytes),'uploaded image survives save and fresh retrieval byte-for-byte');
-await act({type:'round',swap:true});ok(state.used.includes('custom-upload')&&state.state.swapped&&state.state.round===2,'new round retains used questions and swaps axes');
+await act({type:'round',swap:true});ok(state.state.wins.every(v=>v===0)&&state.state.cells.every(v=>v===0)&&!state.state.canUndo,'new round clears scores and cells and prevents undo to the previous round');ok(state.used.includes('custom-upload')&&state.state.swapped&&state.state.round===2,'new round retains used questions and swaps axes');
 
 
 await act({type:'clear'});await act({type:'reset'});state=await get(true);ok(state.questions.length===0,'reset after deliberate content removal does not re-import questions');
 const {initialGame}=await import('./core.ts');
 const {hash}=await import('./service.ts');
 const legacyId=crypto.randomUUID(),legacyKey=crypto.randomUUID();const legacy=initialGame();legacy.cells[7]=1;legacy.wins=[2,1];legacy.round=4;legacy.names=['الأصدقاء','الرفاق'];legacy.used=['reference-3'];legacy.questions.push({id:'reference-1',text:'أين أُقيم هذا الاجتماع؟',answer:'حائل',note:'ملاحظة شخصية لا تُمسح',image:null},{id:'reference-2',text:'صياغة عدّلها المقدّم',answer:'علي العقلا',note:'خاص',image:null},{id:'reference-3',text:'من هو هذا الشخص؟ هل تعرفه؟',answer:'أسماعيل البرصان',note:'',image:null},{id:'reference-4',text:'ماذا تُسمّى الجبال خلف بدر الرشيد؟',answer:'غراميل الروله',note:'',image:null},{id:'own',text:'سؤالي الخاص',answer:'جوابي الخاص',note:'',image:null});
+sql.exec('DELETE FROM active_game'); // Independent pre-migration installation fixture.
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(legacyId,await hash(legacyKey),5,JSON.stringify(legacy));
 const legacyUrl=origin+'/api/game?s='+legacyId+'&host=1';
 const upgraded=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();
@@ -53,6 +61,7 @@ const upgradedV2=structuredClone(legacy);
 upgradedV2.contentVersion=2;upgradedV2.questions=upgradedV2.questions.filter(q=>!q.demo&&q.id!=='reference-1');
 upgradedV2.display='reference-3';upgradedV2.reveal=true;upgradedV2.used=['reference-3'];
 const v2id=crypto.randomUUID(),v2key=crypto.randomUUID();
+sql.exec('DELETE FROM active_game'); // Independent pre-migration installation fixture.
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(v2id,await hash(v2key),7,JSON.stringify(upgradedV2));
 const v2base=origin+'/api/game?s='+v2id+'&host=1';
 const upgradedV3=await (await fetch(v2base,{headers:{'x-host-key':v2key}})).json();
@@ -69,6 +78,7 @@ priorV3.contentVersion=3;
 priorV3.questions.push({id:'friends-extra-02',text:'سؤال عدّله المقدّم',answer:'جواب خاص',note:'ملاحظة محفوظة',image:null});
 priorV3.used.push('friends-extra-01');
 const v3id=crypto.randomUUID(),v3key=crypto.randomUUID();
+sql.exec('DELETE FROM active_game'); // Independent pre-migration installation fixture.
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(v3id,await hash(v3key),10,JSON.stringify(priorV3));
 const v4url=origin+'/api/game?s='+v3id+'&host=1';
 const v4=await (await fetch(v4url,{headers:{'x-host-key':v3key}})).json();
@@ -81,6 +91,7 @@ ok(v4again.revision===v4.revision&&v4again.questions.length===v4.questions.lengt
 
 const priorV4=structuredClone(priorV3);priorV4.contentVersion=4;
 const v5id=crypto.randomUUID(),v5key=crypto.randomUUID();
+sql.exec('DELETE FROM active_game'); // Independent pre-migration installation fixture.
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(v5id,await hash(v5key),11,JSON.stringify(priorV4));
 const v5url=origin+'/api/game?s='+v5id+'&host=1';
 const v5=await (await fetch(v5url,{headers:{'x-host-key':v5key}})).json();
@@ -89,5 +100,30 @@ ok(v5.questions.find(q=>q.id==='friends-v5-03').answer==='الكليتان'&&v5.
 ok(!v5.questions.some(q=>q.id==='friends-more-01')&&v5.used.includes('friends-extra-01')&&v5.state.cells[7]===1,'six additions respect prior deletions and keep progress');
 const v5again=await (await fetch(v5url,{headers:{'x-host-key':v5key}})).json();
 ok(v5again.revision===v5.revision&&v5again.questions.length===v5.questions.length,'six questions are not duplicated after reconnect');
+
+
+const singletonBefore=sql.prepare('SELECT count(*) n FROM sessions').get().n;
+const sameGame=await (await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})})).json();
+ok(sameGame.id===v5id&&!sameGame.key&&sql.prepare('SELECT count(*) n FROM sessions').get().n===singletonBefore,'adopted legacy game remains the only active game');
+const oldPublic=await (await fetch(origin+'/api/game?s='+legacyId)).json();
+ok(oldPublic.state.cells[7]===v5.state.cells[7]&&oldPublic.revision===v5again.revision,'old public links now resolve the one active game');
+const badPrivate=await fetch(origin+'/api/game?s='+legacyId+'&host=1',{headers:{'x-host-key':legacyKey}});
+ok(badPrivate.status===403,'a key from a different retired game cannot control the active game');
+
+// A clean install with two simultaneous first openings must create exactly one session.
+sql.exec('DELETE FROM active_game; DELETE FROM sessions');
+const simultaneous=await Promise.all([1,2].map(()=>fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})})));
+const both=await Promise.all(simultaneous.map(r=>r.json()));
+ok(both.every(r=>r.id===both[0].id)&&both.filter(r=>r.key).length===1&&sql.prepare('SELECT count(*) n FROM sessions').get().n===1,'simultaneous first openings create one game and issue one presenter key');
+
+// Existing deployments need no manual schema migration.
+sql.exec('DROP TABLE active_game');
+const autoMigration=await fetch(origin+'/api/game?resolve=1');
+ok(autoMigration.status===200&&(await autoMigration.json()).id===null,'active-game registry is created automatically for existing installations');
+const unknownVisitor=await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})});
+ok(unknownVisitor.status===409&&sql.prepare('SELECT count(*) n FROM sessions').get().n===1,'unknown visitor cannot replace an existing installation before presenter adoption');
+const adoptId=both[0].id,adoptKey=both.find(r=>r.key).key;
+const adoption=await (await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json','x-host-key':adoptKey},body:JSON.stringify({type:'create',previousId:adoptId})})).json();
+ok(adoption.id===adoptId&&adoption.key===adoptKey&&sql.prepare('SELECT count(*) n FROM sessions').get().n===1,'saved presenter link adopts existing data instead of starting another session');
 
 console.log(`All ${count} API integration checks passed.`);
