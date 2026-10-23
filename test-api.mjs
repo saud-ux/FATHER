@@ -22,7 +22,7 @@ ok(ownerOpen.id===id&&ownerOpen.key===key,'presenter reopens same game with the 
 const resolved=await (await fetch(origin+'/api/game?resolve=1')).json();
 ok(resolved.id===id&&Object.keys(resolved).length===1,'public landing resolves the game without private data');
 const get=async(host=false)=>{const r=await fetch(base+(host?'&host=1':''),{headers:host?{'x-host-key':key}:{}});assert.equal(r.status,200);return r.json()};
-let state=await get(true);ok(state.questions.length===53&&state.questions.filter(q=>q.review).length===2,'53 questions seeded, including two blocked for review');
+let state=await get(true);ok(state.questions.length===61&&state.questions.filter(q=>q.review).length===2,'61 questions seeded, including two blocked for review');
 const post=async(action,revision=state.revision,op=crypto.randomUUID())=>fetch(base,{method:'POST',headers:{'content-type':'application/json','x-host-key':key},body:JSON.stringify({...action,revision,op})});
 async function act(action){const r=await post(action);assert.equal(r.status,200,await r.text());state=await get(true)}
 r=await fetch(base+'&host=1');ok(r.status===403,'audience URL cannot retrieve question bank');
@@ -51,11 +51,11 @@ sql.exec('DELETE FROM active_game'); // Independent pre-migration installation f
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(legacyId,await hash(legacyKey),5,JSON.stringify(legacy));
 const legacyUrl=origin+'/api/game?s='+legacyId+'&host=1';
 const upgraded=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();
-ok(upgraded.questions.length===54&&!upgraded.questions.some(q=>q.demo),'existing session receives uploaded bank exactly once without demos');
+ok(upgraded.questions.length===62&&!upgraded.questions.some(q=>q.demo),'existing session receives uploaded bank exactly once without demos');
 ok(upgraded.state.cells[7]===1&&upgraded.state.round===4&&upgraded.state.wins[0]===2&&upgraded.used.includes('reference-3'),'content upgrade preserves board, rounds, wins and used-question history');
 ok(upgraded.questions.find(q=>q.id==='reference-2').text==='صياغة عدّلها المقدّم'&&upgraded.questions.some(q=>q.id==='own'),'content upgrade preserves presenter edits and custom questions');
 ok(upgraded.questions.find(q=>q.id==='reference-1').note==='ملاحظة شخصية لا تُمسح','content upgrade preserves private presenter notes');
-const again=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();ok(again.revision===upgraded.revision&&again.questions.length===54,'reload never duplicates imported questions or rewrites state');
+const again=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();ok(again.revision===upgraded.revision&&again.questions.length===62,'reload never duplicates imported questions or rewrites state');
 
 const upgradedV2=structuredClone(legacy);
 upgradedV2.contentVersion=2;upgradedV2.questions=upgradedV2.questions.filter(q=>!q.demo&&q.id!=='reference-1');
@@ -125,5 +125,16 @@ ok(unknownVisitor.status===409&&sql.prepare('SELECT count(*) n FROM sessions').g
 const adoptId=both[0].id,adoptKey=both.find(r=>r.key).key;
 const adoption=await (await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json','x-host-key':adoptKey},body:JSON.stringify({type:'create',previousId:adoptId})})).json();
 ok(adoption.id===adoptId&&adoption.key===adoptKey&&sql.prepare('SELECT count(*) n FROM sessions').get().n===1,'saved presenter link adopts existing data instead of starting another session');
+
+
+sql.exec('DELETE FROM active_game');
+const beforeScreens=structuredClone(priorV4);beforeScreens.contentVersion=5;
+const screensId=crypto.randomUUID(),screensKey=crypto.randomUUID();
+sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(screensId,await hash(screensKey),12,JSON.stringify(beforeScreens));
+const screensUrl=origin+'/api/game?s='+screensId+'&host=1';
+const screensAdded=await (await fetch(screensUrl,{headers:{'x-host-key':screensKey}})).json();
+ok(screensAdded.questions.filter(q=>q.id.startsWith('friends-v6-')).length===8&&screensAdded.questions.find(q=>q.id==='friends-v6-02').answer==='بركة'&&screensAdded.questions.find(q=>q.id==='friends-v6-08').answer==='جرداء / جدباء','all eight screenshot questions imported with the supplied answers');
+const screensAgain=await (await fetch(screensUrl,{headers:{'x-host-key':screensKey}})).json();
+ok(screensAgain.revision===screensAdded.revision&&screensAgain.state.cells[7]===1&&screensAgain.used.includes('friends-extra-01')&&screensAgain.state.names[0]===beforeScreens.names[0],'screenshot import is idempotent and preserves game and question history');
 
 console.log(`All ${count} API integration checks passed.`);
