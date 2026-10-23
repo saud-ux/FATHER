@@ -15,7 +15,7 @@ let count=0;function ok(value,label){assert.ok(value,label);count++;console.log(
 let r=await fetch(origin+'/api/game',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'create'})});assert.equal(r.status,200);const{id,key}=await r.json();ok(id&&key,'create durable session with presenter capability');
 const base=origin+'/api/game?s='+id;
 const get=async(host=false)=>{const r=await fetch(base+(host?'&host=1':''),{headers:host?{'x-host-key':key}:{}});assert.equal(r.status,200);return r.json()};
-let state=await get(true);ok(state.questions.length===44&&state.questions.filter(q=>q.review).length===2,'44 questions seeded, including two blocked for review');
+let state=await get(true);ok(state.questions.length===47&&state.questions.filter(q=>q.review).length===2,'47 questions seeded, including two blocked for review');
 const post=async(action,revision=state.revision,op=crypto.randomUUID())=>fetch(base,{method:'POST',headers:{'content-type':'application/json','x-host-key':key},body:JSON.stringify({...action,revision,op})});
 async function act(action){const r=await post(action);assert.equal(r.status,200,await r.text());state=await get(true)}
 r=await fetch(base+'&host=1');ok(r.status===403,'audience URL cannot retrieve question bank');
@@ -43,11 +43,11 @@ const legacyId=crypto.randomUUID(),legacyKey=crypto.randomUUID();const legacy=in
 sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(legacyId,await hash(legacyKey),5,JSON.stringify(legacy));
 const legacyUrl=origin+'/api/game?s='+legacyId+'&host=1';
 const upgraded=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();
-ok(upgraded.questions.length===45&&!upgraded.questions.some(q=>q.demo),'existing session receives uploaded bank exactly once without demos');
+ok(upgraded.questions.length===48&&!upgraded.questions.some(q=>q.demo),'existing session receives uploaded bank exactly once without demos');
 ok(upgraded.state.cells[7]===1&&upgraded.state.round===4&&upgraded.state.wins[0]===2&&upgraded.used.includes('reference-3'),'content upgrade preserves board, rounds, wins and used-question history');
 ok(upgraded.questions.find(q=>q.id==='reference-2').text==='صياغة عدّلها المقدّم'&&upgraded.questions.some(q=>q.id==='own'),'content upgrade preserves presenter edits and custom questions');
 ok(upgraded.questions.find(q=>q.id==='reference-1').note==='ملاحظة شخصية لا تُمسح','content upgrade preserves private presenter notes');
-const again=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();ok(again.revision===upgraded.revision&&again.questions.length===45,'reload never duplicates imported questions or rewrites state');
+const again=await (await fetch(legacyUrl,{headers:{'x-host-key':legacyKey}})).json();ok(again.revision===upgraded.revision&&again.questions.length===48,'reload never duplicates imported questions or rewrites state');
 
 const upgradedV2=structuredClone(legacy);
 upgradedV2.contentVersion=2;upgradedV2.questions=upgradedV2.questions.filter(q=>!q.demo&&q.id!=='reference-1');
@@ -62,5 +62,20 @@ ok(upgradedV3.state.cells[7]===1&&upgradedV3.state.wins[0]===2&&upgradedV3.state
 ok(upgradedV3.state.question.answer==='أسماعيل البرصان','content update preserves the currently revealed original answer');
 const v3again=await (await fetch(v2base,{headers:{'x-host-key':v2key}})).json();
 ok(v3again.revision===upgradedV3.revision&&v3again.questions.length===upgradedV3.questions.length,'reconnecting never duplicates the 25 added questions');
+
+
+const priorV3=structuredClone(upgradedV2);
+priorV3.contentVersion=3;
+priorV3.questions.push({id:'friends-extra-02',text:'سؤال عدّله المقدّم',answer:'جواب خاص',note:'ملاحظة محفوظة',image:null});
+priorV3.used.push('friends-extra-01');
+const v3id=crypto.randomUUID(),v3key=crypto.randomUUID();
+sql.prepare('INSERT INTO sessions VALUES(?,?,?,?)').run(v3id,await hash(v3key),10,JSON.stringify(priorV3));
+const v4url=origin+'/api/game?s='+v3id+'&host=1';
+const v4=await (await fetch(v4url,{headers:{'x-host-key':v3key}})).json();
+ok(v4.questions.filter(q=>q.id.startsWith('friends-more-')).length===3,'v3 sessions receive exactly the three selected questions');
+ok(!v4.questions.some(q=>q.id==='friends-extra-01')&&v4.questions.find(q=>q.id==='friends-extra-02').text==='سؤال عدّله المقدّم','new selection preserves earlier deletions and presenter edits');
+ok(v4.used.includes('friends-extra-01')&&v4.state.cells[7]===1&&v4.state.question.answer==='أسماعيل البرصان','three additions preserve used history, board and visible answer');
+const v4again=await (await fetch(v4url,{headers:{'x-host-key':v3key}})).json();
+ok(v4again.revision===v4.revision&&v4again.questions.length===v4.questions.length,'reloading does not add selected questions twice');
 
 console.log(`All ${count} API integration checks passed.`);
