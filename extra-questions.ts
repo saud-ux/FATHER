@@ -199,5 +199,29 @@ export const extraQuestions = [
     "note": "",
     "review": false,
     "data": null
+  },
+  {
+    "id": "friends-more-01",
+    "text": "وش الشي اللي يقرصك ولا تشوفه؟",
+    "answer": "الجوع",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-more-02",
+    "text": "وش الشي اللي له أوراق، ولا هو شجرة؟",
+    "answer": "الكتاب",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-more-14",
+    "text": "وش يسمّون مكان النار اللي يجتمعون حوله بالمجلس؟",
+    "answer": "الوجار",
+    "note": "",
+    "review": false,
+    "data": null
   }
 ];
