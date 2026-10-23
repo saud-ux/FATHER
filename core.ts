@@ -15,7 +15,7 @@ case 'board':g.display=null;g.reveal=false;g.zoom=false;break;
 case 'zoom':g.zoom=!!a.value;break;
 case 'start':g.started=true;break;
 case 'names':if(!Array.isArray(a.names)||a.names.length!==2)throw Error('أسماء غير صالحة');g.names=a.names.map((n:string,i:number)=>String(n).trim().slice(0,50)||['الفريق الأول','الفريق الثاني'][i]);break;
-case 'round':g.cells=Array(25).fill(0);g.history=[];g.winner=0;g.path=[];g.display=null;g.reveal=false;g.zoom=false;g.round++;if(a.swap)g.swapped=!g.swapped;break;
+case 'round':g.cells=Array(25).fill(0);g.wins=[0,0];g.history=[];g.winner=0;g.path=[];g.display=null;g.reveal=false;g.zoom=false;g.round++;if(a.swap)g.swapped=!g.swapped;break;
 case 'reset': {const fresh=initialGame();fresh.questions=g.questions;fresh.used=g.used;fresh.names=g.names;fresh.contentVersion=g.contentVersion;g={...fresh,started:g.started};break;}
 case 'unused':g.used=[];break;
 case 'save': {const q=a.question;if(!q||typeof q.id!=='string'||q.id.length>80)throw Error('معرّف غير صالح');const clean:Question={id:q.id,text:String(q.text||'').trim().slice(0,3000),answer:String(q.answer||'').trim().slice(0,3000),note:String(q.note||'').slice(0,3000),image:q.image||null,review:!!q.review,demo:!!q.demo};if(!clean.text&&!clean.image)throw Error('أضف نصًا أو صورة');if(!clean.answer&&!clean.review)throw Error('أضف الإجابة أو علّم السؤال للمراجعة');if(g.questions.length>=500&&!g.questions.some(q=>q.id===clean.id))throw Error('الحد الأقصى ٥٠٠ سؤال');g.questions=g.questions.filter(q=>q.id!==clean.id).concat(clean);if(g.display===clean.id){g.display=null;g.reveal=false}break;}
