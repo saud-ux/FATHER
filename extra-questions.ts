@@ -223,5 +223,53 @@ export const extraQuestions = [
     "note": "",
     "review": false,
     "data": null
+  },
+  {
+    "id": "friends-v5-01",
+    "text": "وش أكبر عضو في جسم الإنسان؟",
+    "answer": "الجلد",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-v5-02",
+    "text": "وش اسم العظم اللي يحمي الدماغ؟",
+    "answer": "الجمجمة",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-v5-03",
+    "text": "وش العضوان اللي ينقّون الدم ويكوّنون البول؟",
+    "answer": "الكليتان",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-v5-04",
+    "text": "وش اسم الجزء الملوّن في العين؟",
+    "answer": "القزحية",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-v5-07",
+    "text": "وش اسم صوت الثعبان؟",
+    "answer": "الفحيح",
+    "note": "",
+    "review": false,
+    "data": null
+  },
+  {
+    "id": "friends-v5-08",
+    "text": "وش اسم صوت الماء الجاري؟",
+    "answer": "الخرير",
+    "note": "",
+    "review": false,
+    "data": null
   }
 ];
