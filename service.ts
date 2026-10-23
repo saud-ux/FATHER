@@ -9,7 +9,7 @@ import {apply,initialGame,publicView} from './core.ts';
 import {referenceSeeds as originalSeeds} from './questions.ts';
 import {extraQuestions} from './extra-questions.ts';
 const referenceSeeds=[...originalSeeds,...extraQuestions];
-const CONTENT_VERSION=5;
+const CONTENT_VERSION=6;
 const response=(data:any,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
 export async function hash(s:string){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('')}
 const ACTIVE_SCHEMA='CREATE TABLE IF NOT EXISTS active_game (slot INTEGER PRIMARY KEY CHECK(slot=1), session_id TEXT NOT NULL UNIQUE)';
@@ -38,7 +38,7 @@ export async function installContent(g:any,id:string,env:any){
  for(const seed of referenceSeeds){
   // Only import content introduced after this session's installed version.
   // Preserve previous deletions, edits and the currently displayed question.
-  const introduced=seed.id.startsWith('friends-v5-')?5:seed.id.startsWith('friends-more-')?4:seed.id.startsWith('friends-extra-')?3:2;
+  const introduced=seed.id.startsWith('friends-v6-')?6:seed.id.startsWith('friends-v5-')?5:seed.id.startsWith('friends-more-')?4:seed.id.startsWith('friends-extra-')?3:2;
   if((g.contentVersion||0)>=introduced)continue;
   const existing=g.questions.find((q:any)=>q.id===seed.id);
   // Preserve questions the presenter edited; update only untouched bundled references.
