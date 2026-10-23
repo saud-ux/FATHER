@@ -109,3 +109,8 @@ Cloudflare Workers لا يستخدم سليب الخمول وانتظار الت
 - `schema.sql` و`wrangler.jsonc`: الجدول وإعداد الاستضافة.
 - `test-core.ts` و`test-api.mjs`: اختبارات المشروع.
 - `package.json` و`.gitignore`: الحزم وأوامر التشغيل واستبعاد الملفات المحلية.
+
+
+## بعد إعادة ربط GitHub
+
+اربط المستودع `saud-ux/FATHER` بالفرع `main`، واترك Build command على `npm run build` وDeploy command على `npx wrangler deploy`. هذا التحديث يشغّل نشر آخر نسخة بعد إصلاح ربط GitHub. النسخة تحتوي ٦١ سؤالًا، ورابطي اللعب والإعدادات، وجلسة واحدة ثابتة.
