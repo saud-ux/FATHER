@@ -23,6 +23,13 @@ const resolved=await (await fetch(origin+'/api/game?resolve=1')).json();
 ok(resolved.id===id&&Object.keys(resolved).length===1,'public landing resolves the game without private data');
 const get=async(host=false)=>{const r=await fetch(base+(host?'&host=1':''),{headers:host?{'x-host-key':key}:{}});assert.equal(r.status,200);return r.json()};
 let state=await get(true);ok(state.questions.length===66&&state.questions.filter(q=>q.review).length===2,'66 questions seeded, including two blocked for review');
+const boardUrl=base+'&board=1';
+ok((await fetch(boardUrl)).status===403,'laptop control link requires presenter key instead of silently showing read-only board');
+ok((await fetch(boardUrl,{headers:{'x-host-key':'expired-key'}})).status===403,'expired laptop key is rejected clearly');
+const boardState=await (await fetch(boardUrl,{headers:{'x-host-key':key}})).json();
+ok(boardState.state&&boardState.questions===undefined&&boardState.used===undefined&&!JSON.stringify(boardState).includes('note'),'authorized laptop receives display data only, never private bank');
+const reopenedBoard=await (await fetch(boardUrl,{headers:{'x-host-key':key}})).json();
+ok(reopenedBoard.revision===boardState.revision,'laptop reconnect with saved valid key preserves game state');
 const post=async(action,revision=state.revision,op=crypto.randomUUID())=>fetch(base,{method:'POST',headers:{'content-type':'application/json','x-host-key':key},body:JSON.stringify({...action,revision,op})});
 async function act(action){const r=await post(action);assert.equal(r.status,200,await r.text());state=await get(true)}
 r=await fetch(base+'&host=1');ok(r.status===403,'audience URL cannot retrieve question bank');
