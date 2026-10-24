@@ -54,6 +54,7 @@ export async function installContent(g:any,id:string,env:any){
 export async function gameGET(req:Request,env:any){try{
  if(new URL(req.url).searchParams.get('resolve')==='1'){const active=await activeGame(env);return response({id:active?.session_id||null})}
  let row=await session(req,env);if(!row)return response({error:'لم نعثر على الجلسة. افتح رابط الجلسة الصحيح.'},404);
+ if(new URL(req.url).searchParams.get('board')==='1'&&!await authorized(req,row))return response({error:'رابط المقدّم الخاص مطلوب'},403);
  let g=JSON.parse(row.data);
  if(new URL(req.url).searchParams.get('host')==='1'){
   if(!await authorized(req,row))return response({error:'رابط المقدّم الخاص مطلوب'},403);
